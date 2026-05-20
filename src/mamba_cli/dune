@@ -1,0 +1,5 @@
+(executable
+ (name main)
+ (public_name mamba-cli)
+ (package mamba-cli)
+ (libraries mamba))

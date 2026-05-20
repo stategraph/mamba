@@ -1,0 +1,6 @@
+(tests
+ (names test_mamba cobra_args cobra_command cobra_completions cobra_suggestions
+        cobra_flag_groups cobra_groups cobra_case_insensitive kubectl_parity
+        test_kitchen_sink)
+ (libraries alcotest mamba unix)
+ (deps ../examples/kitchen_sink.exe))

@@ -1,0 +1,3 @@
+(executables
+ (names hello git_like lwt_bridge gen_man infra_cli kitchen_sink)
+ (libraries mamba unix str))
