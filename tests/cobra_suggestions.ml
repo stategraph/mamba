@@ -10,17 +10,7 @@
     documented divergence. *)
 
 open Mamba
-
-let contains haystack needle =
-  let lh = String.length haystack and ln = String.length needle in
-  if ln = 0 then true
-  else
-    let rec loop i =
-      if i + ln > lh then false
-      else if String.sub haystack i ln = needle then true
-      else loop (i + 1)
-    in
-    loop 0
+open Test_util
 
 (* Root has a single child [times] and no [run], so an unknown positional
    triggers Program.run's "unknown command" + Did-you-mean path. [times]

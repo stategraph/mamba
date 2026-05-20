@@ -9,17 +9,7 @@
     [?completion_command_group_id] parameters on [Program.make]. *)
 
 open Mamba
-
-let contains haystack needle =
-  let lh = String.length haystack and ln = String.length needle in
-  if ln = 0 then true
-  else
-    let rec loop i =
-      if i + ln > lh then false
-      else if String.sub haystack i ln = needle then true
-      else loop (i + 1)
-    in
-    loop 0
+open Test_util
 
 (* Run [root --help] and return captured stdout. *)
 let help_output root =
@@ -34,9 +24,6 @@ let help_output root =
   in
   let _ = Program.run prog ~argv:[| root.Command.name; "--help" |] in
   Buffer.contents out_buf
-
-let must_contain label out needle =
-  Alcotest.(check bool) (label ^ ": contains " ^ needle) true (contains out needle)
 
 (* ------------------------------------------------------------------ *)
 (* TestUsageWithGroup                                                  *)

@@ -28,6 +28,7 @@
         modeled here. *)
 
 open Mamba
+open Test_util
 
 (* ============================================================ *)
 (* Stubs                                                         *)
@@ -402,17 +403,6 @@ let dispatch args =
       ()
   in
   Program.dispatch prog ~argv:(Array.of_list ("kubectl" :: args))
-
-let contains haystack needle =
-  let lh = String.length haystack and ln = String.length needle in
-  if ln = 0 then true
-  else
-    let rec loop i =
-      if i + ln > lh then false
-      else if String.sub haystack i ln = needle then true
-      else loop (i + 1)
-    in
-    loop 0
 
 (* ============================================================ *)
 (* Tests                                                         *)
