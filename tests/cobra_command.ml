@@ -72,6 +72,7 @@
     Error-message wording is not asserted. *)
 
 open Mamba
+open Test_util
 
 (* ------------------------------------------------------------------ *)
 (* Helpers                                                             *)
@@ -108,17 +109,6 @@ let capture_run () =
   let captured = ref [] in
   let run args = captured := Args.positional args; Error.success in
   (captured, run)
-
-let contains haystack needle =
-  let lh = String.length haystack and ln = String.length needle in
-  if ln = 0 then true
-  else
-    let rec loop i =
-      if i + ln > lh then false
-      else if String.sub haystack i ln = needle then true
-      else loop (i + 1)
-    in
-    loop 0
 
 let success_code code = Alcotest.(check int) "exit 0" Error.success code
 let failure_code code = Alcotest.(check int) "exit 2" Error.parse_error code

@@ -26,6 +26,7 @@
           no runtime completion. *)
 
 open Mamba
+open Test_util
 
 let emit shell ~program_name root =
   let buf = Buffer.create 1024 in
@@ -33,23 +34,6 @@ let emit shell ~program_name root =
   Completion.emit ~out:fmt ~shell ~program_name ~root;
   Format.pp_print_flush fmt ();
   Buffer.contents buf
-
-let contains haystack needle =
-  let lh = String.length haystack and ln = String.length needle in
-  if ln = 0 then true
-  else
-    let rec loop i =
-      if i + ln > lh then false
-      else if String.sub haystack i ln = needle then true
-      else loop (i + 1)
-    in
-    loop 0
-
-let must_contain label out needle =
-  Alcotest.(check bool) (label ^ ": contains " ^ needle) true (contains out needle)
-
-let must_omit label out needle =
-  Alcotest.(check bool) (label ^ ": does NOT contain " ^ needle) false (contains out needle)
 
 let make_root name =
   let child = Command.make ~name:"child" ~run:(fun _ -> 0) () in

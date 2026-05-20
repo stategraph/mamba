@@ -1,17 +1,7 @@
 open Mamba
+open Test_util
 
 let str_list = Alcotest.(list string)
-
-let contains haystack needle =
-  let lh = String.length haystack and ln = String.length needle in
-  if ln = 0 then true
-  else
-    let rec loop i =
-      if i + ln > lh then false
-      else if String.sub haystack i ln = needle then true
-      else loop (i + 1)
-    in
-    loop 0
 
 (* --- Suggest --- *)
 
@@ -869,11 +859,8 @@ let test_completion_smoke () =
 
 (* --- Man: smoke --- *)
 
-(* Pin Man.write_all: writes one .1 file per command in the tree to a dir. *)
 let test_man_write_all () =
-  let dir = Filename.temp_file "mamba_man_test" ".d" in
-  Sys.remove dir;
-  Unix.mkdir dir 0o755;
+  let dir = Filename.temp_dir "mamba_man_test" ".d" in
   let leaf =
     Command.make ~name:"leaf" ~short:"a leaf" ~run:(fun _ -> 0) ()
   in
@@ -890,13 +877,9 @@ let test_man_write_all () =
   Alcotest.(check bool) "wrote at least 3 files (root + mid + leaf)"
     true (List.length written >= 3);
   List.iter (fun p ->
-    Alcotest.(check bool) (p ^ " exists")    true (Sys.file_exists p);
-    let ic = open_in p in
-    let n  = in_channel_length ic in
-    close_in ic;
-    Alcotest.(check bool) (p ^ " non-empty") true (n > 0))
+    let size = (Unix.stat p).st_size in
+    Alcotest.(check bool) (p ^ " non-empty") true (size > 0))
     written;
-  (* Cleanup *)
   List.iter Sys.remove written;
   Unix.rmdir dir
 
