@@ -67,13 +67,22 @@ let build_target  = Flag.string ~name:"target" ~short:'t'
 let build_jobs    = Flag.int ~name:"jobs" ~short:'j'
                       ~default:1 ~doc:"parallel jobs" ()
 
+(* Long ~doc exercise: help wraps this to the terminal width *)
+let build_cache_from =
+  Flag.string ~name:"cache-from"
+    ~doc:"Use an external cache source for this build. Accepts a registry \
+          reference or a local directory; pass it multiple times to chain \
+          sources, with earlier entries taking precedence over later ones \
+          when the same layer exists in several caches." ()
+
 let build_cmd =
   Command.make ~name:"build"
     ~short:"build the project"
     ~long:"Compile sources into the target's binary format."
     ~example:"  $ kit build --release -j8\n  $ kit build --target wasm"
     ~group_id:"dev"
-    ~flags:[ Flag.pack build_release; Flag.pack build_target; Flag.pack build_jobs ]
+    ~flags:[ Flag.pack build_release; Flag.pack build_target; Flag.pack build_jobs;
+             Flag.pack build_cache_from ]
     ~run:(fun args ->
       Printf.printf "build release=%b target=%s jobs=%d\n"
         (Args.get args build_release) (Args.get args build_target)

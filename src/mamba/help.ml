@@ -72,14 +72,67 @@ let flag_doc_with_groups (Flag.P f) (cmd : Command.t) =
   | [] -> base
   | _ -> base ^ " " ^ String.concat " " notes
 
+(* Width budget for wrapping the right-hand column. $COLUMNS when it
+   parses (interactive shells set it), else 100. Stdlib-only, so no
+   ioctl-based terminal detection. *)
+let terminal_width () =
+  match Sys.getenv_opt "COLUMNS" with
+  | Some s ->
+    (match int_of_string_opt (String.trim s) with
+     | Some n when n > 0 -> n
+     | Some _ | None -> 100)
+  | None -> 100
+
+(* Greedy word wrap to [width]. Newlines in [text] are treated as word
+   separators; a word longer than [width] gets its own line rather than
+   being split. *)
+let wrap_words ~width text =
+  let words =
+    String.split_on_char ' ' text
+    |> List.concat_map (String.split_on_char '\n')
+    |> List.filter (fun w -> w <> "")
+  in
+  match words with
+  | [] -> []
+  | first :: rest ->
+    let lines, last =
+      List.fold_left
+        (fun (lines, cur) w ->
+           if String.length cur + 1 + String.length w <= width then
+             (lines, cur ^ " " ^ w)
+           else (cur :: lines, w))
+        ([], first) rest
+    in
+    List.rev (last :: lines)
+
+(* Below this much room there is no useful wrapping -- emit the old
+   single-line form and let the terminal handle it. *)
+let min_wrap_budget = 20
+
 let render_two_column ~out items =
   if items = [] then ()
   else
     let max_left =
       List.fold_left (fun acc (l, _) -> max acc (String.length l)) 0 items
     in
+    (* Rows render as "  " ^ left padded to [max_left] ^ "   " ^ right,
+       so the right column starts at [max_left + 5]; continuation lines
+       of a wrapped right column get a hanging indent to the same spot. *)
+    let right_start = max_left + 5 in
+    let budget = terminal_width () - right_start in
+    let indent = String.make right_start ' ' in
     List.iter
-      (fun (l, r) -> Format.fprintf out "  %-*s   %s@." max_left l r)
+      (fun (l, r) ->
+         if budget < min_wrap_budget || String.length r <= budget then
+           Format.fprintf out "  %-*s   %s@." max_left l r
+         else
+           match wrap_words ~width:budget r with
+           | [] -> Format.fprintf out "  %-*s   %s@." max_left l r
+           | first :: rest ->
+             Format.fprintf out "  %-*s   %s@." max_left l first;
+             List.iter
+               (fun line -> Format.fprintf out "%s%s@." indent line)
+               rest)
       items
 
 let path_str path_commands =

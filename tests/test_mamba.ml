@@ -201,6 +201,54 @@ let test_pure_group_usage_line () =
   Alcotest.(check bool) "no bare 'app box' usage line" false
     (contains out "app box\n")
 
+(* Long right-column docs wrap to the terminal width ($COLUMNS, default
+   100) with a hanging indent; short docs stay on one line. *)
+let test_long_flag_doc_wraps () =
+  Unix.putenv "COLUMNS" "60";
+  let long_doc = String.concat " " (List.init 40 (fun _ -> "word")) in
+  let glob = Flag.string ~name:"force-files" ~doc:long_doc () in
+  let tiny = Flag.string ~name:"out" ~doc:"tinydoc" () in
+  let sub =
+    Command.make ~name:"plan"
+      ~flags:[ Flag.pack glob; Flag.pack tiny ]
+      ~run:(fun _ -> 0) ()
+  in
+  let root = Command.make ~name:"app" ~subcommands:[ sub ] () in
+  let out_buf = Buffer.create 1024 in
+  let prog =
+    Program.make ~name:"app" ~version:"0" ~root
+      ~help_command:false ~completion_command:false
+      ~out:(Format.formatter_of_buffer out_buf)
+      ~err:(Format.formatter_of_buffer (Buffer.create 16))
+      ()
+  in
+  let _ = Program.run prog ~argv:[| "app"; "plan"; "--help" |] in
+  (* putenv cannot unset; park COLUMNS far out so later tests see the
+     pre-wrap rendering. *)
+  Unix.putenv "COLUMNS" "1000";
+  let out = Buffer.contents out_buf in
+  let lines = String.split_on_char '\n' out in
+  let doc_lines = List.filter (fun l -> contains l "word") lines in
+  Alcotest.(check bool) "long doc spans multiple lines" true
+    (List.length doc_lines > 1);
+  List.iter
+    (fun l ->
+       Alcotest.(check bool) "wrapped lines fit in 60 columns" true
+         (String.length l <= 60))
+    doc_lines;
+  (match doc_lines with
+   | [] | [ _ ] -> ()
+   | _first :: continuations ->
+     List.iter
+       (fun l ->
+          Alcotest.(check bool) "continuation has a hanging indent" true
+            (String.length l > 10 && String.sub l 0 10 = "          ");
+          Alcotest.(check bool) "continuation doesn't repeat the flag" false
+            (contains l "--force-files"))
+       continuations);
+  let tiny_lines = List.filter (fun l -> contains l "tinydoc") lines in
+  Alcotest.(check int) "short doc stays on one line" 1 (List.length tiny_lines)
+
 (* --- Multi flags: list (sep-based) and repeated (occurrence-based) --- *)
 
 let mk_prog ~root =
@@ -1057,5 +1105,10 @@ let () =
         Alcotest.test_case "groff smoke" `Quick test_man_smoke;
         Alcotest.test_case "write_all to dir"
           `Quick test_man_write_all;
+      ];
+      (* Last on purpose: mutates $COLUMNS, which putenv cannot unset. *)
+      "help-wrap", [
+        Alcotest.test_case "long docs wrap with hanging indent"
+          `Quick test_long_flag_doc_wraps;
       ];
     ]

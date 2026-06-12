@@ -199,6 +199,28 @@ let auto_subcommands () =
   let (_, bash_out, _) = r_bash in
   Alcotest.(check bool) "bash script non-empty" true (String.length bash_out > 100)
 
+(* $COLUMNS drives help wrapping: --cache-from's long doc gets a hanging
+   indent and every wrapped line fits the advertised width. *)
+let help_wraps_long_flag_docs () =
+  let r = run ~env:[| "COLUMNS=60" |] [ "build"; "--help" ] in
+  check_exit ~label:"wrap" 0 r;
+  check_stdout ~label:"wrap" "--cache-from" r;
+  let (_, out, _) = r in
+  let lines = String.split_on_char '\n' out in
+  let doc_lines =
+    List.filter
+      (fun l ->
+         contains l "cache" || contains l "registry" || contains l "precedence")
+      lines
+  in
+  Alcotest.(check bool) "doc wraps over multiple lines" true
+    (List.length doc_lines > 1);
+  List.iter
+    (fun l ->
+       Alcotest.(check bool) "wrapped doc lines fit in 60 columns" true
+         (String.length l <= 60))
+    doc_lines
+
 let flag_list_and_repeated () =
   let r = run [ "db"; "seed"; "-f"; "a,b"; "-f"; "c"; "--tag"; "x"; "--tag"; "y" ] in
   check_exit ~label:"db seed" 0 r;
@@ -264,5 +286,6 @@ let () =
         tc "case-insensitive"        case_insensitive;
         tc "pre-scan flag-first"     prescan_flag_before_command;
         tc "auto subcommands"        auto_subcommands;
+        tc "help wraps long docs"    help_wraps_long_flag_docs;
       ];
     ]

@@ -168,9 +168,9 @@ For each feature: `WORKS` (verified end-to-end), `BUG: <desc>`, or
    `Run "<cmd> --help" for usage.` footer that other parse-time errors
    show. Fixable in `Lifecycle.run` (call `Help.render_error` instead
    of raw `Format.fprintf`).
-2. The Usage line for `db` (group with subcommands, no own run) still
-   emits `kit db` AND `kit db [command]` on two lines. The first line
-   is redundant. Minor cosmetic.
+2. ~~The Usage line for `db` (group with subcommands, no own run) still
+   emits `kit db` AND `kit db [command]` on two lines.~~ Fixed: pure
+   dispatchers render only the `kit db [command]` line.
 
 ## Verdict
 
@@ -180,7 +180,9 @@ Of the **89 enumerated public-API features**:
 - **1 DEAD** — `Command.t.version` field is never read.
 - **1 UNEXERCISED** — `Man.write_all`. Probably works, no test pins it.
 
-**Minor inconsistencies:** 2 (Missing_flag footer, group-Usage double line).
+**Minor inconsistencies:** 1 (Missing_flag footer). The group-Usage double
+line is fixed, and long flag docs now wrap to `$COLUMNS` (default 100)
+with a hanging indent.
 
 Kitchen-sink CLI: ~330 lines of OCaml exercising every feature in one
 program. Compiles clean. Help, completion, error paths all behave
