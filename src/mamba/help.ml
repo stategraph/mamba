@@ -17,17 +17,19 @@ let flag_doc (Flag.P f) =
   let with_default =
     match Flag.default f with
     | Some v ->
-      (* For list/multi flags, the default printed value is the empty
-         string when default = []; "(default: )" reads as broken. Suppress.
-         For Switch flags, the default is conventionally false (= absent);
-         "(default: false)" is just noise. Suppress that too. *)
+      (* Suppress defaults that only restate "flag was not passed":
+         Switch false, Count 0, and the empty Multi accumulator ("" or
+         "[]" depending on the printer). Rendering those reads as noise
+         or, for the empty string, as a broken "(default: )" artifact. *)
       let printed = (Flag.printer f) v in
-      let is_switch_false =
+      let is_noise_default =
         match Flag.kind f with
         | Flag.Switch -> printed = "false"
-        | Flag.Value | Flag.Count | Flag.Multi -> false
+        | Flag.Count -> printed = "0"
+        | Flag.Multi -> printed = "[]"
+        | Flag.Value -> false
       in
-      if printed = "" || is_switch_false then d
+      if printed = "" || is_noise_default then d
       else Printf.sprintf "%s (default: %s)" d printed
     | None ->
       if Flag.required f then d ^ " (required)" else d
@@ -117,7 +119,12 @@ let render ?(has_version = false) ~out ~color ~path_commands ~command () =
     then ""
     else " [flags]"
   in
-  Format.fprintf out "  %s%s%s@." full_name flags_part args_part;
+  (* A pure dispatcher (subcommands, no own run) is only ever invoked
+     through a subcommand; rendering a bare "app group" usage line implies
+     it does something on its own. Show just the "[command]" form. *)
+  let is_pure_group = has_subs && command.Command.run = None in
+  if not is_pure_group then
+    Format.fprintf out "  %s%s%s@." full_name flags_part args_part;
   (match command.Command.subcommands with
    | [] -> ()
    | _ -> Format.fprintf out "  %s [command]@." full_name);

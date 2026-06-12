@@ -154,6 +154,53 @@ let test_empty_list_default_not_rendered () =
   Alcotest.(check bool) "no '(default: )' artifact" false
     (contains out "(default: )")
 
+(* Defaults that just restate "flag not passed" (Count 0, repeated []) are
+   noise; help must not render them. *)
+let test_noise_defaults_not_rendered () =
+  let verbose = Flag.count ~name:"verbose" ~short:'v' ~doc:"" () in
+  let tag = Flag.repeated (Flag.string ~name:"tag" ~doc:"" ()) in
+  let sub =
+    Command.make ~name:"ls"
+      ~flags:[ Flag.pack verbose; Flag.pack tag ]
+      ~run:(fun _ -> 0) ()
+  in
+  let root = Command.make ~name:"app" ~subcommands:[ sub ] () in
+  let out_buf = Buffer.create 256 in
+  let prog =
+    Program.make ~name:"app" ~version:"0" ~root
+      ~help_command:false ~completion_command:false
+      ~out:(Format.formatter_of_buffer out_buf)
+      ~err:(Format.formatter_of_buffer (Buffer.create 16))
+      ()
+  in
+  let _ = Program.run prog ~argv:[| "app"; "ls"; "--help" |] in
+  let out = Buffer.contents out_buf in
+  Alcotest.(check bool) "no '(default: 0)' for count" false
+    (contains out "(default: 0)");
+  Alcotest.(check bool) "no '(default: [])' for repeated" false
+    (contains out "(default: [])")
+
+(* A pure dispatcher's usage shows only the "[command]" line -- a bare
+   "app group" line implies the group does something on its own. *)
+let test_pure_group_usage_line () =
+  let sub = Command.make ~name:"ls" ~run:(fun _ -> 0) () in
+  let group = Command.make ~name:"box" ~subcommands:[ sub ] () in
+  let root = Command.make ~name:"app" ~subcommands:[ group ] () in
+  let out_buf = Buffer.create 256 in
+  let prog =
+    Program.make ~name:"app" ~version:"0" ~root
+      ~help_command:false ~completion_command:false
+      ~out:(Format.formatter_of_buffer out_buf)
+      ~err:(Format.formatter_of_buffer (Buffer.create 16))
+      ()
+  in
+  let _ = Program.run prog ~argv:[| "app"; "box"; "--help" |] in
+  let out = Buffer.contents out_buf in
+  Alcotest.(check bool) "has '[command]' usage line" true
+    (contains out "app box [command]");
+  Alcotest.(check bool) "no bare 'app box' usage line" false
+    (contains out "app box\n")
+
 (* --- Multi flags: list (sep-based) and repeated (occurrence-based) --- *)
 
 let mk_prog ~root =
@@ -913,6 +960,10 @@ let () =
           `Quick test_dash_dash_satisfies_arg_validator;
         Alcotest.test_case "empty list default not rendered"
           `Quick test_empty_list_default_not_rendered;
+        Alcotest.test_case "noise defaults not rendered"
+          `Quick test_noise_defaults_not_rendered;
+        Alcotest.test_case "pure group usage line"
+          `Quick test_pure_group_usage_line;
         Alcotest.test_case "arg validator"    `Quick test_arg_validator;
       ];
       "multi-flags", [
